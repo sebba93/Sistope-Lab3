@@ -150,12 +150,10 @@ int escritura(float *buffer, int x, int y, char *nombreImagen){
 //float **imagen - Matriz donde se encuentran los pixeles de la imagen
 //SALIDA :
 //float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
-float *filtroSuavizado(int x, int y, float **imagen){
-	
+float *suavizadoPrimero(int x, int y, float **imagen, float **bufferSiguiente, int xBuffer, int yBuffer){
     //Creamos el buffer para su escritura
     float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
 
-    
     if (nuevaImagen == NULL){
         printf("Error al alocar memoria\n");
         exit(-1);
@@ -181,13 +179,13 @@ float *filtroSuavizado(int x, int y, float **imagen){
             }
             //Caso inferior izquierdo
             else if (i == x - 1 && j == 0){
-                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1];
-                nuevoPixel = numAux / 3;
+                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1] + bufferSiguiente[0][0] + bufferSiguiente[0][1];
+                nuevoPixel = numAux / 5;
             }
             //Caso inferior derecho
-            else if (i == x - 1 && j == y - 1){
-                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2];
-                nuevoPixel = numAux / 3;
+            else if (i == x - 1 && j == y - 1){                                                                                                 /// PUEDE SER ALREVEZ OJOOOOOOOOOOOOOOOOOOOOOOOOOO
+                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2] + bufferSiguiente[0][yBuffer-1] + bufferSiguiente[0][yBuffer-2];
+                nuevoPixel = numAux / 5;
             }
             //Caso izquierdo
             else if(j == 0 && i != 0 && i != x-1){
@@ -206,15 +204,15 @@ float *filtroSuavizado(int x, int y, float **imagen){
             }
             //Caso inferior
             else if(i == x - 1 && j != 0 && j != y-1){
-                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1];
-                nuevoPixel = numAux / 5;
+                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1] + bufferSiguiente[0][j-1] + bufferSiguiente[0][j] + bufferSiguiente[0][j+1];
+                nuevoPixel = numAux / 8;
             }
             //Caso general
             else{
                 numAux = imagen[i - 1][j - 1] + imagen[i - 1][j] + imagen[i - 1][j + 1] + imagen[i][j - 1] + imagen[i][j + 1] + imagen[i + 1][j - 1] + imagen[i + 1][j] + imagen[i + 1][j + 1];
                 nuevoPixel = numAux / 8;
             }
-
+ 
             //Agregamos el pixel a la nueva matriz
             
             nuevaImagen[contadorBuffer] = nuevoPixel;
@@ -225,9 +223,165 @@ float *filtroSuavizado(int x, int y, float **imagen){
 
 
 
-    return nuevaImagen;
-    
+    return nuevaImagen;    
+
 }
+
+float *suavizadoUltimo(int x, int y, float **imagen, float **bufferAnterior, int xBuffer, int yBuffer){
+    //Creamos el buffer para su escritura
+    float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
+
+    if (nuevaImagen == NULL){
+        printf("Error al alocar memoria\n");
+        exit(-1);
+    }
+
+    float numAux;
+    float nuevoPixel;
+
+    int contadorBuffer = 0;
+
+    for (int i = 0; i < x; i++){
+        for (int j = 0; j < y; j++){
+            
+            //Caso superior izquierdo
+            if (i == 0 && j == 0){
+                numAux = imagen[0][1] + imagen[1][0] + imagen[1][1] + bufferAnterior[xBuffer-1][0] + bufferAnterior[xBuffer-1][1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso superior derecho
+            else if (i == 0 && j == y - 1){
+                numAux = imagen[0][y - 1] + imagen[1][y - 1] + imagen[1][y - 2] + bufferAnterior[xBuffer-1][yBuffer-1] + bufferAnterior[xBuffer-1][yBuffer-2];
+                nuevoPixel = numAux / 5; 
+            }
+            //Caso inferior izquierdo
+            else if (i == x - 1 && j == 0){
+                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1];
+                nuevoPixel = numAux / 3;
+            }
+            //Caso inferior derecho
+            else if (i == x - 1 && j == y - 1){                                                                                                 /// PUEDE SER ALREVEZ OJOOOOOOOOOOOOOOOOOOOOOOOOOO
+                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2];
+                nuevoPixel = numAux / 3;
+            }
+            //Caso izquierdo
+            else if(j == 0 && i != 0 && i != x-1){
+                numAux = imagen[i - 1][0] + imagen[i + 1][0] + imagen[i - 1][1] + imagen[i][1] + imagen[i + 1][1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso superior
+            else if(i == 0 && j != 0 && j != y-1){
+                numAux = imagen[0][j - 1] + imagen[0][j + 1] + imagen[1][j - 1] + imagen[1][j] + imagen[1][j + 1] + bufferAnterior[xBuffer-1][j-1] + bufferAnterior[xBuffer-1][j] + bufferAnterior[xBuffer-1][j+1];
+                nuevoPixel = numAux / 8;
+            }
+            //Caso derecho
+            else if(i != 0 && i != x-1 && j == y - 1){
+                numAux = imagen[i - 1][y - 2] + imagen[i][y - 2] + imagen[i + 1][y - 2] + imagen[i - 1][y - 1] + imagen[i + 1][y - 1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso inferior
+            else if(i == x - 1 && j != 0 && j != y-1){
+                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso general
+            else{
+                numAux = imagen[i - 1][j - 1] + imagen[i - 1][j] + imagen[i - 1][j + 1] + imagen[i][j - 1] + imagen[i][j + 1] + imagen[i + 1][j - 1] + imagen[i + 1][j] + imagen[i + 1][j + 1];
+                nuevoPixel = numAux / 8;
+            }
+ 
+            //Agregamos el pixel a la nueva matriz
+            
+            nuevaImagen[contadorBuffer] = nuevoPixel;
+            contadorBuffer++;
+        }
+    }
+
+
+
+
+    return nuevaImagen;    
+
+}
+
+float *suavizadoMedio(int x, int y, float **imagen, float **bufferAnterior, int xBufferA, int yBufferA, float **bufferSiguiente, int xBufferS, int yBufferS){
+    //Creamos el buffer para su escritura
+    float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
+
+    if (nuevaImagen == NULL){
+        printf("Error al alocar memoria\n");
+        exit(-1);
+    }
+
+    float numAux;
+    float nuevoPixel;
+
+    int contadorBuffer = 0;
+
+    for (int i = 0; i < x; i++){
+        for (int j = 0; j < y; j++){
+            
+            //Caso superior izquierdo
+            if (i == 0 && j == 0){
+                numAux = imagen[0][1] + imagen[1][0] + imagen[1][1] + bufferAnterior[xBufferA-1][0] + bufferAnterior[xBufferA-1][1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso superior derecho
+            else if (i == 0 && j == y - 1){
+                numAux = imagen[0][y - 1] + imagen[1][y - 1] + imagen[1][y - 2] + bufferAnterior[xBufferA-1][yBufferA-1] + bufferAnterior[xBufferA-1][yBufferA-2];
+                nuevoPixel = numAux / 5; 
+            }
+            //Caso inferior izquierdo
+            else if (i == x - 1 && j == 0){
+                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1] + bufferSiguiente[0][0] + bufferSiguiente[0][1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso inferior derecho
+            else if (i == x - 1 && j == y - 1){                                                                                                 /// PUEDE SER ALREVEZ OJOOOOOOOOOOOOOOOOOOOOOOOOOO
+                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2] + bufferSiguiente[0][yBufferS-1] + bufferSiguiente[0][yBufferS-2];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso izquierdo
+            else if(j == 0 && i != 0 && i != x-1){
+                numAux = imagen[i - 1][0] + imagen[i + 1][0] + imagen[i - 1][1] + imagen[i][1] + imagen[i + 1][1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso superior
+            else if(i == 0 && j != 0 && j != y-1){
+                numAux = imagen[0][j - 1] + imagen[0][j + 1] + imagen[1][j - 1] + imagen[1][j] + imagen[1][j + 1] + bufferAnterior[xBufferA-1][j-1] + bufferAnterior[xBufferA-1][j] + bufferAnterior[xBufferA-1][j+1];
+                nuevoPixel = numAux / 8;
+            }
+            //Caso derecho
+            else if(i != 0 && i != x-1 && j == y - 1){
+                numAux = imagen[i - 1][y - 2] + imagen[i][y - 2] + imagen[i + 1][y - 2] + imagen[i - 1][y - 1] + imagen[i + 1][y - 1];
+                nuevoPixel = numAux / 5;
+            }
+            //Caso inferior
+            else if(i == x - 1 && j != 0 && j != y-1){
+                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1] + bufferSiguiente[0][j-1] + bufferSiguiente[0][j] + bufferSiguiente[0][j+1];
+                nuevoPixel = numAux / 8;
+            }
+            //Caso general
+            else{
+                numAux = imagen[i - 1][j - 1] + imagen[i - 1][j] + imagen[i - 1][j + 1] + imagen[i][j - 1] + imagen[i][j + 1] + imagen[i + 1][j - 1] + imagen[i + 1][j] + imagen[i + 1][j + 1];
+                nuevoPixel = numAux / 8;
+            }
+ 
+            //Agregamos el pixel a la nueva matriz
+            
+            nuevaImagen[contadorBuffer] = nuevoPixel;
+            contadorBuffer++;
+        }
+    }
+
+
+
+
+    return nuevaImagen;    
+
+}
+
+
 
 //Convierte una matriz en un buffer unidimensional para poder escribirlo en un archivo binario
 //ENTRADAS : 
@@ -286,4 +440,228 @@ float** deliniado(int columnas, int filas, float** matriz){
     return matriz_delineado;
 
 }
+
+float *delineadoPrimero(int x, int y, float **imagen, float **bufferSiguiente, int xBuffer, int yBuffer){
+    //Creamos el buffer para su escritura
+    float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
+
+    if (nuevaImagen == NULL){
+        printf("Error al alocar memoria\n");
+        exit(-1);
+    }
+
+    float numAux;
+    float nuevoPixel;
+
+    int contadorBuffer = 0;
+
+    for (int i = 0; i < x; i++){
+        for (int j = 0; j < y; j++){
+            
+            //Caso superior izquierdo
+            if (i == 0 && j == 0){
+                numAux = imagen[0][1] + imagen[1][0] + imagen[1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso superior derecho
+            else if (i == 0 && j == y - 1){
+                numAux = imagen[0][y - 1] + imagen[1][y - 1] + imagen[1][y - 2];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8); 
+            }
+            //Caso inferior izquierdo
+            else if (i == x - 1 && j == 0){
+                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1] + bufferSiguiente[0][0] + bufferSiguiente[0][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso inferior derecho
+            else if (i == x - 1 && j == y - 1){                                                                                                 /// PUEDE SER ALREVEZ OJOOOOOOOOOOOOOOOOOOOOOOOOOO
+                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2] + bufferSiguiente[0][yBuffer-1] + bufferSiguiente[0][yBuffer-2];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso izquierdo
+            else if(j == 0 && i != 0 && i != x-1){
+                numAux = imagen[i - 1][0] + imagen[i + 1][0] + imagen[i - 1][1] + imagen[i][1] + imagen[i + 1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso superior
+            else if(i == 0 && j != 0 && j != y-1){
+                numAux = imagen[0][j - 1] + imagen[0][j + 1] + imagen[1][j - 1] + imagen[1][j] + imagen[1][j + 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso derecho
+            else if(i != 0 && i != x-1 && j == y - 1){
+                numAux = imagen[i - 1][y - 2] + imagen[i][y - 2] + imagen[i + 1][y - 2] + imagen[i - 1][y - 1] + imagen[i + 1][y - 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso inferior
+            else if(i == x - 1 && j != 0 && j != y-1){
+                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1] + bufferSiguiente[0][j-1] + bufferSiguiente[0][j] + bufferSiguiente[0][j+1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso general
+            else{
+                numAux = imagen[i - 1][j - 1] + imagen[i - 1][j] + imagen[i - 1][j + 1] + imagen[i][j - 1] + imagen[i][j + 1] + imagen[i + 1][j - 1] + imagen[i + 1][j] + imagen[i + 1][j + 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+ 
+            //Agregamos el pixel a la nueva matriz
+            
+            nuevaImagen[contadorBuffer] = nuevoPixel;
+            contadorBuffer++;
+        }
+    }
+
+
+
+
+    return nuevaImagen;    
+
+}
+
+float *delineadoUltimo(int x, int y, float **imagen, float **bufferAnterior, int xBuffer, int yBuffer){
+    //Creamos el buffer para su escritura
+    float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
+
+    if (nuevaImagen == NULL){
+        printf("Error al alocar memoria\n");
+        exit(-1);
+    }
+
+    float numAux;
+    float nuevoPixel;
+
+    int contadorBuffer = 0;
+
+    for (int i = 0; i < x; i++){
+        for (int j = 0; j < y; j++){
+            
+            //Caso superior izquierdo
+            if (i == 0 && j == 0){
+                numAux = imagen[0][1] + imagen[1][0] + imagen[1][1] + bufferAnterior[xBuffer-1][0] + bufferAnterior[xBuffer-1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso superior derecho
+            else if (i == 0 && j == y - 1){
+                numAux = imagen[0][y - 1] + imagen[1][y - 1] + imagen[1][y - 2] + bufferAnterior[xBuffer-1][yBuffer-1] + bufferAnterior[xBuffer-1][yBuffer-2];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8); 
+            }
+            //Caso inferior izquierdo
+            else if (i == x - 1 && j == 0){
+                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso inferior derecho
+            else if (i == x - 1 && j == y - 1){                                                                                                 /// PUEDE SER ALREVEZ OJOOOOOOOOOOOOOOOOOOOOOOOOOO
+                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso izquierdo
+            else if(j == 0 && i != 0 && i != x-1){
+                numAux = imagen[i - 1][0] + imagen[i + 1][0] + imagen[i - 1][1] + imagen[i][1] + imagen[i + 1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso superior
+            else if(i == 0 && j != 0 && j != y-1){
+                numAux = imagen[0][j - 1] + imagen[0][j + 1] + imagen[1][j - 1] + imagen[1][j] + imagen[1][j + 1] + bufferAnterior[xBuffer-1][j-1] + bufferAnterior[xBuffer-1][j] + bufferAnterior[xBuffer-1][j+1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso derecho
+            else if(i != 0 && i != x-1 && j == y - 1){
+                numAux = imagen[i - 1][y - 2] + imagen[i][y - 2] + imagen[i + 1][y - 2] + imagen[i - 1][y - 1] + imagen[i + 1][y - 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso inferior
+            else if(i == x - 1 && j != 0 && j != y-1){
+                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso general
+            else{
+                numAux = imagen[i - 1][j - 1] + imagen[i - 1][j] + imagen[i - 1][j + 1] + imagen[i][j - 1] + imagen[i][j + 1] + imagen[i + 1][j - 1] + imagen[i + 1][j] + imagen[i + 1][j + 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+ 
+            //Agregamos el pixel a la nueva matriz
+            
+            nuevaImagen[contadorBuffer] = nuevoPixel;
+            contadorBuffer++;
+        }
+    }
+
+
+
+
+    return nuevaImagen;    
+
+}
+
+float *delineadoMedio(int x, int y, float **imagen, float **bufferAnterior, int xBufferA, int yBufferA, float **bufferSiguiente, int xBufferS, int yBufferS){
+    //Creamos el buffer para su escritura
+    float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
+
+    if (nuevaImagen == NULL){
+        printf("Error al alocar memoria\n");
+        exit(-1);
+    }
+
+    float numAux;
+    float nuevoPixel;
+
+    int contadorBuffer = 0;
+
+    for (int i = 0; i < x; i++){
+        for (int j = 0; j < y; j++){
+            
+            //Caso superior izquierdo
+            if (i == 0 && j == 0){
+                numAux = imagen[0][1] + imagen[1][0] + imagen[1][1] + bufferAnterior[xBufferA-1][0] + bufferAnterior[xBufferA-1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso superior derecho
+            else if (i == 0 && j == y - 1){
+                numAux = imagen[0][y - 1] + imagen[1][y - 1] + imagen[1][y - 2] + bufferAnterior[xBufferA-1][yBufferA-1] + bufferAnterior[xBufferA-1][yBufferA-2];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8); 
+            }
+            //Caso inferior izquierdo
+            else if (i == x - 1 && j == 0){
+                numAux = imagen[x - 2][0] + imagen[x - 2][1] + imagen[x - 1][1] + bufferSiguiente[0][0] + bufferSiguiente[0][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso inferior derecho
+            else if (i == x - 1 && j == y - 1){                                                                                                 /// PUEDE SER ALREVEZ OJOOOOOOOOOOOOOOOOOOOOOOOOOO
+                numAux = imagen[x - 2][y - 2] + imagen[x - 2][y - 1] + imagen[x - 1][y - 2] + bufferSiguiente[0][yBufferS-1] + bufferSiguiente[0][yBufferS-2];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso izquierdo
+            else if(j == 0 && i != 0 && i != x-1){
+                numAux = imagen[i - 1][0] + imagen[i + 1][0] + imagen[i - 1][1] + imagen[i][1] + imagen[i + 1][1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso superior
+            else if(i == 0 && j != 0 && j != y-1){
+                numAux = imagen[0][j - 1] + imagen[0][j + 1] + imagen[1][j - 1] + imagen[1][j] + imagen[1][j + 1] + bufferAnterior[xBufferA-1][j-1] + bufferAnterior[xBufferA-1][j] + bufferAnterior[xBufferA-1][j+1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso derecho
+            else if(i != 0 && i != x-1 && j == y - 1){
+                numAux = imagen[i - 1][y - 2] + imagen[i][y - 2] + imagen[i + 1][y - 2] + imagen[i - 1][y - 1] + imagen[i + 1][y - 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso inferior
+            else if(i == x - 1 && j != 0 && j != y-1){
+                numAux = imagen[x - 2][j - 1] + imagen[x - 2][j] + imagen[x - 2][j + 1] + imagen[x - 1][j - 1] + imagen[x - 1][j + 1] + bufferSiguiente[0][j-1] + bufferSiguiente[0][j] + bufferSiguiente[0][j+1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+            //Caso general
+            else{
+                numAux = imagen[i - 1][j - 1] + imagen[i - 1][j] + imagen[i - 1][j + 1] + imagen[i][j - 1] + imagen[i][j + 1] + imagen[i + 1][j - 1] + imagen[i + 1][j] + imagen[i + 1][j + 1];
+                nuevoPixel = (numAux*-1) + (imagen[i][j]*8);
+            }
+ 
+            //Agregamos el pixel a la nueva matriz
+            
+            nuevaImagen[contadorBuffer] = nuevoPixel;
+            contadorBuffer++;
+        }
+    }
 
