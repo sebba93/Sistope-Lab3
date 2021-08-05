@@ -32,7 +32,7 @@ typedef struct {
     char *nombreArchivoSalida;
     pthread_mutex_t * mutex;
     buffer_t * buffer;
-    buffer_t * pasoMensajes;
+    buffer_t * bufferAux;
     pthread_barrier_t * barrera;
 } consumer_t;
 
@@ -138,22 +138,22 @@ void *producer(void *arg){
 
 void *consumer (void *arg){
 
-    consumer_t * datos;
-    datos=(consumer_t *) arg;
+    consumer_t * informacion;
+    informacion=(consumer_t *) arg;
 
     buffer_t *buffer;
-    buffer = datos->buffer;
+    buffer = informacion->buffer;
 
     pthread_barrier_t * barrera;
-    barrera=datos->barrera;
+    barrera=informacion->barrera;
 
-    pthread_mutex_t * mutex=datos->mutex;
+    pthread_mutex_t * mutex=informacion->mutex;
 
-    int filasPorHebra=datos->filasPorHebra;
-    int columnas=datos->columnas;
+    int filasPorHebra=informacion->filasPorHebra;
+    int columnas=informacion->columnas;
 
     float ** salida=(float**)malloc(sizeof(float*)*filasPorHebra);
-    pthread_mutex_lock(&mutex[datos->id]); //bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]); //bloquea esta hebra
     int i=0;
     while (i<filasPorHebra) {
         pthread_mutex_lock (&buffer->mutex);
@@ -168,8 +168,8 @@ void *consumer (void *arg){
         i++;
     }
 
-    if(datos->id !=datos->cantidadHebras - 1){ // desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){ // desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{
         pthread_mutex_unlock(&mutex[0]); //o la primera si esta era la ultima hebra
@@ -177,9 +177,9 @@ void *consumer (void *arg){
 
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
 
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     //print
-    printf("llegue id: %d\n",datos->id);
+    printf("llegue id: %d\n",informacion->id);
     for(i=0;i<filasPorHebra;i++){
         for(int j=0; j<columnas; j++){
             printf("%d ",salida[i][j]);
@@ -187,8 +187,8 @@ void *consumer (void *arg){
         printf("\n");
     }
     
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -200,8 +200,8 @@ void *consumer (void *arg){
     pthread_barrier_wait(barrera); //Barrera para sincronizacion
 
     //Se crea una matriz del tamaño del zoom pedido
-    int fZoom = datos->filasPorHebra*datos->factor;
-    int cZoom = datos->columnas*datos->factor;
+    int fZoom = informacion->filasPorHebra*informacion->factor;
+    int cZoom = informacion->columnas*informacion->factor;
 
     float **matriz_zoom=(float **)malloc(fZoom*sizeof(float*));
     for (int i = 0; i < fZoom; ++i){
@@ -209,7 +209,7 @@ void *consumer (void *arg){
     }
 
     //Se llama a la función zoom
-    matriz_zoom = zoomImagen(datos->columnas, datos->filasPorHebra, datos->factor, salida);
+    matriz_zoom = zoomImagen(informacion->columnas, informacion->filasPorHebra, informacion->factor, salida);
 
     //################################################//
     //################################################//
@@ -222,13 +222,13 @@ void *consumer (void *arg){
     ////////////////////////////filas anteriores
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
 
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
-    if(datos->id !=datos->cantidadHebras - 1){
-        put_in_buffer(datos->pasoMensajes, matriz_zoom[fZoom-1],cZoom);
+    if(informacion->id !=informacion->cantidadHebras - 1){
+        put_in_buffer(informacion->bufferAux, matriz_zoom[fZoom-1],cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -237,13 +237,13 @@ void *consumer (void *arg){
 
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
     int * filaAnterior=(float*)malloc(sizeof(float)*cZoom);
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se lee del buffer la fila anterior excepto la primera hebra.
-    if(datos->id !=0){
-        filaAnterior=take_from_buffer(datos->pasoMensajes, cZoom);
+    if(informacion->id !=0){
+        filaAnterior=take_from_buffer(informacion->bufferAux, cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -253,26 +253,26 @@ void *consumer (void *arg){
     //////////////////////////////////////Filas siguientes
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
 
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
-    if(datos->id !=0){
-        put_in_buffer(datos->pasoMensajes, matriz_zoom[0],cZoom);
+    if(informacion->id !=0){
+        put_in_buffer(informacion->bufferAux, matriz_zoom[0],cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
     }
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
     float * filaSig;
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se lee del buffer la fila siguiente excepto la ultima hebra.
-    if(datos->id !=datos->cantidadHebras - 1){
-        filaSig=take_from_buffer(datos->pasoMensajes, cZoom);
+    if(informacion->id !=informacion->cantidadHebras - 1){
+        filaSig=take_from_buffer(informacion->bufferAux, cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -288,10 +288,10 @@ void *consumer (void *arg){
         matriz_suave[i]=(float *) malloc (cZoom*sizeof(float));
     }
 
-    if (datos->id == 0){
+    if (informacion->id == 0){
         matriz_suave = suavizadoPrimero(fZoom, cZoom, zoomImagen, filaSig, cZoom);
     }
-    else if (datos->id == datos->cantidadHebras - 1){
+    else if (informacion->id == informacion->cantidadHebras - 1){
         matriz_suave = suavizadoUltimo(fZoom, cZoom, zoomImagen, filaAnterior, cZoom);
     }
     else {
@@ -304,13 +304,13 @@ void *consumer (void *arg){
     ////////////////////////////filas anteriores
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
 
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
-    if(datos->id !=datos->cantidadHebras - 1){
-        put_in_buffer(datos->pasoMensajes, matriz_suave[fZoom-1],cZoom);
+    if(informacion->id !=informacion->cantidadHebras - 1){
+        put_in_buffer(informacion->bufferAux, matriz_suave[fZoom-1],cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -319,13 +319,13 @@ void *consumer (void *arg){
 
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
     int * filaAnterior=(float*)malloc(sizeof(float)*cZoom);
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se lee del buffer la fila anterior excepto la primera hebra.
-    if(datos->id !=0){
-        filaAnterior=take_from_buffer(datos->pasoMensajes, cZoom);
+    if(informacion->id !=0){
+        filaAnterior=take_from_buffer(informacion->bufferAux, cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -335,26 +335,26 @@ void *consumer (void *arg){
     //////////////////////////////////////Filas siguientes
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
 
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
-    if(datos->id !=0){
-        put_in_buffer(datos->pasoMensajes, matriz_suave[0],cZoom);
+    if(informacion->id !=0){
+        put_in_buffer(informacion->bufferAux, matriz_suave[0],cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
     }
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
     float * filaSig;
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     // se lee del buffer la fila siguiente excepto la ultima hebra.
-    if(datos->id !=datos->cantidadHebras - 1){
-        filaSig=take_from_buffer(datos->pasoMensajes, cZoom);
+    if(informacion->id !=informacion->cantidadHebras - 1){
+        filaSig=take_from_buffer(informacion->bufferAux, cZoom);
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -370,10 +370,10 @@ void *consumer (void *arg){
         matriz_delineado[i]=(float *) malloc (cZoom*sizeof(float));
     }
 
-    if (datos->id == 0){
+    if (informacion->id == 0){
         matriz_delineado = delineadorPrimero(fZoom, cZoom, zoomImagen, filaSig, cZoom);
     }
-    else if (datos->id == datos->cantidadHebras - 1){
+    else if (informacion->id == informacion->cantidadHebras - 1){
         matriz_delineado = delineadorUltimo(fZoom, cZoom, zoomImagen, filaAnterior, cZoom);
     }
     else {
@@ -398,11 +398,11 @@ void *consumer (void *arg){
 
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
 
-    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    pthread_mutex_lock(&mutex[informacion->id]);//bloquea esta hebra
     //print
     printf("\n");
-    printf("llegue id: %d\n",datos->id);
-    if(datos->id !=0){
+    printf("llegue id: %d\n",informacion->id);
+    if(informacion->id !=0){
         for(int j=0; j<columnas; j++){
              printf("%d ",filaAnterior[j]);
         }
@@ -414,14 +414,14 @@ void *consumer (void *arg){
         }
         printf("\n");
     }
-    if(datos->id !=datos->cantidadHebras - 1){
+    if(informacion->id !=informacion->cantidadHebras - 1){
         for(int j=0; j<columnas; j++){
              printf("%d ",filaSig[j]);
         }
         printf("\n");
     }
-    if(datos->id !=datos->cantidadHebras - 1){// desbloquea la siguiente hebra
-        pthread_mutex_unlock(&mutex[datos->id +1]);
+    if(informacion->id !=informacion->cantidadHebras - 1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[informacion->id +1]);
     }
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
@@ -550,14 +550,14 @@ int main(int argc, char* argv[]){
         informacion[i].nombreArchivoSalida = nombre_archivo_out;
         informacion[i].mutex = mutex;
         informacion[i].buffer = buffer;
-        informacion[i].bufferAux = bufferAux;
+        informacion[i].bufferAux = bufferAuxiliar;
         informacion[i].barrera = &barrera;
     }
 
     //Cambiar algoritmo
     int j=0;
     for(int i=0;i<filas;i++){
-        datos[j].filasPorHebra++;
+        informacion[j].filasPorHebra++;
         j++;
         if(j==numeroHebras){
             j=0;
@@ -572,7 +572,7 @@ int main(int argc, char* argv[]){
     pthread_cond_init(&buffer->notEmpty, NULL);
     pthread_create(&pro, NULL, producer, (void *) buffer);
     for(int i=0;i<numeroHebras;i++){
-        pthread_create(&con[i], NULL, consumer, (void *) &datos[i]);
+        pthread_create(&con[i], NULL, consumer, (void *) &informacion[i]);
     }
     pthread_join(pro, NULL);
     for(int i=0;i<numeroHebras;i++){
@@ -580,7 +580,7 @@ int main(int argc, char* argv[]){
     }
 
     free(buffer);
-    free(datos);
+    free(informacion);
     free(mutex);
     free(con); 
 
