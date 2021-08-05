@@ -14,9 +14,9 @@ int escritura(float *buffer, int x, int y, char *nombreImagen);
 float *convertirBuffer(float **imagen, int x, int y, float *bufferImagen);
 
 //Suavizados
-float *suavizadoPrimero(int x, int y, float **imagen, float **bufferSiguiente, int xBuffer, int yBuffer);
-float *suavizadoUltimo(int x, int y, float **imagen, float **bufferAnterior, int xBuffer, int yBuffer);
-float *suavizadoMedio(int x, int y, float **imagen, float **bufferAnterior, int xBufferA, int yBufferA, float **bufferSiguiente, int xBufferS, int yBufferS);
+float *suavizadoPrimero(int x, int y, float **imagen, float **bufferSiguiente, int yBuffer);
+float *suavizadoUltimo(int x, int y, float **imagen, float **bufferAnterior, int yBuffer);
+float *suavizadoMedio(int x, int y, float **imagen, float **bufferAnterior, int yBufferA, float **bufferSiguiente, int yBufferS);
 
 //Delineado
 float** deliniado(int columnas, int filas, float** matriz);
