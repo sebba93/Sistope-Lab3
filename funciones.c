@@ -664,4 +664,5 @@ float *delineadoMedio(int x, int y, float **imagen, float **bufferAnterior, int 
             contadorBuffer++;
         }
     }
+}
 
