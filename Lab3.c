@@ -2,7 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "funciones.h"
 #include <pthread.h>
+
+//Structs basados en ejemplo dado en clases//
 
 typedef struct {
     int filas;
@@ -11,13 +14,18 @@ typedef struct {
     int **buffer;
     int in, out;
     int full, empty;
+
+    int tamanoBuffer;
+
+    char *nombreArchivo; //Necesario dado que vamos a pasar buffer_t como argumento al crear las hebras
+
     pthread_mutex_t mutex;
     pthread_cond_t notFull, notEmpty;
 } buffer_t;
 
 typedef struct {
     int id;
-    int numHebras;
+    int cantidadHebras;
     int filasPorHebra;
     int columnas;
     int factor;
@@ -28,11 +36,8 @@ typedef struct {
 } consumer_t;
 
 
-int produce(int i){
-    return i*2;
-}
 
-buffer_t * bufferInit(int filas,int columnas){
+buffer_t * bufferInit(int filas,int columnas, int tamanoBuffer){
     buffer_t * buf=(buffer_t*)malloc(sizeof(buffer_t));
     buf->in=0;
     buf->out=0;
@@ -40,6 +45,9 @@ buffer_t * bufferInit(int filas,int columnas){
     buf->empty=1;
     buf->filas=filas;
     buf->columnas=columnas;
+
+    buf->tamanoBuffer = tamanoBuffer;
+
     buf->buffer=(int**)malloc(sizeof(int*)*filas);
     for(int i=0;i<filas;i++){
         buf->buffer[i]=(int*)malloc(sizeof(int)*columnas);
@@ -80,34 +88,49 @@ void *producer(void *arg){
     buffer = (buffer_t *) arg;
     int filas=buffer->filas;
     int columnas= buffer->columnas;
-    int numeroElementos=filas*columnas;
-    int imagen[numeroElementos];
-    int p=0;
-    for(int i=0;i<numeroElementos;i++){  // aca va un buffer de lectura por ejemplo, un arreglo grande que representa una matriz pero con sus datos en linea en un arreglo
-        imagen[i]=p;
-        p++;
+
+    char* nombre_archivo_in = buffer->nombreArchivo;
+
+    //Procedemos a leer la imagen
+
+    float **archivoLeido
+
+    archivoLeido = leerArchivo(nombre_archivo_in, filas, columnas);
+
+    //Hacemos un buffer para poder pasar los datos de la imagen 
+    float * bufferAux = (float*)malloc(sizeof(float)*columnas);
+
+    //Ubicacion actual en el buffer
+    //int ubBuff = 0;
+    
+    //int maxBuffer = buffer->tamanoBuffer;
+
+    for (int i = 0; i < filas; i++){
+        //Revisamos si es que llegamos al
+        for (int j = 0; j < columnas; j++){
+            //Le agregamos los elementos al buffer creado
+            bufferAux[j] = archivoLeido[i][j];
+            }
+            //Una vez pasada la fila completa, pasamos a la seccion critica
+            pthread_mutex_lock(&buffer->mutex);
+            //Esperamos a que el buffer se descargue
+            while (buffer->full == 1){
+                pthread_cond_wait (&buffer->notFull, &buffer->mutex);
+            }
+
+            //Agregamos la columna al buffer
+            put_in_buffer(buffer, bufferAux, columnas);
+
+            //Esperamos a que se vacie
+            pthread_cond_signal(&buffer->notEmpty);
+            //Desbloqueamos el mutex y salimos de la seccion critica
+            pthread_mutex_unlock(&buffer->mutex);
+        }
         
-    }
-    int * v;
-    v=(int *)malloc(sizeof(int)*columnas);
-    int i=0;
-    p=0;
-    while (i<filas) {
 
-        for(int j=0;j<columnas;j++){ //produce()
-            v[j]=imagen[p];
-            p++;
-        }
-
-        pthread_mutex_lock (&buffer->mutex);
-        while (buffer->full) {
-            pthread_cond_wait (&buffer->notFull, &buffer->mutex);
-        }
-        put_in_buffer(buffer, v,columnas);
-        pthread_cond_signal(&buffer->notEmpty);
-        pthread_mutex_unlock(&buffer->mutex);
-        i++;
     }
+
+
 }
 
 
@@ -412,7 +435,7 @@ int main(int argc, char* argv[]){
 
     int numeroHebras = 4;
 
-    pthread_t numeroHebras[cantidadHebras];
+    pthread_t numeroHebras[numeroHebras];
 
     int cantidadFilas = 45;
     int cantidadColumnas = 67;
@@ -421,7 +444,7 @@ int main(int argc, char* argv[]){
     int flagHebras;
 
     //Revisamos la cantidad de filas que van a existir por hebra
-    if (numeroFilas%numeroHebras == 0){
+    if (cantidadFilas%numeroHebras == 0){
         flagHebras = 0;
     }
     else {
