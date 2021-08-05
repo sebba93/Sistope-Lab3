@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 
 typedef struct {
     int filas;
@@ -19,6 +20,7 @@ typedef struct {
     int numHebras;
     int filasPorHebra;
     int columnas;
+    int factor;
     pthread_mutex_t * mutex;
     buffer_t * buffer;
     buffer_t * pasoMensajes;
@@ -125,7 +127,7 @@ void *consumer (void *arg){
     int filasPorHebra=datos->filasPorHebra;
     int columnas=datos->columnas;
 
-    int ** salida=(int**)malloc(sizeof(int*)*filasPorHebra);
+    float ** salida=(float**)malloc(sizeof(float*)*filasPorHebra);
     pthread_mutex_lock(&mutex[datos->id]); //bloquea esta hebra
     int i=0;
     while (i<filasPorHebra) {
@@ -167,6 +169,30 @@ void *consumer (void *arg){
         pthread_mutex_unlock(&mutex[0]);
     }
 
+    //################################################//
+    //######################ZOOM######################//
+    //################################################//
+    pthread_barrier_wait(barrera); //Barrera para sincronizacion
+
+    //Se crea una matriz del tamaño del zoom pedido
+    int fZoom = datos->filasPorHebra*datos->factor;
+    int cZoom = datos->columnas*datos->factor;
+
+    float **matriz_zoom=(float **)malloc(fZoom*sizeof(float*));
+    for (int i = 0; i < fZoom; ++i){
+        matriz_zoom[i]=(float *) malloc (cZoom*sizeof(float));
+    }
+
+    //Se llama a la función zoom
+    matriz_zoom = zoomImagen(columnas, filas, factor, salida);
+
+    //################################################//
+    //################################################//
+    //################################################//
+
+
+
+
 
     ////////////////////////////filas anteriores
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
@@ -174,7 +200,7 @@ void *consumer (void *arg){
     pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
     // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
     if(datos->id !=datos->numHebras-1){
-        put_in_buffer(datos->pasoMensajes, salida[filasPorHebra-1],columnas);
+        put_in_buffer(datos->pasoMensajes, matriz_zoom[fZoom-1],cZoom);
     }
     if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
         pthread_mutex_unlock(&mutex[datos->id +1]);
@@ -185,11 +211,11 @@ void *consumer (void *arg){
 
 
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
-    int * filaAnterior;
+    int * filaAnterior=(float*)malloc(sizeof(float)*cZoom);
     pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
     // se lee del buffer la fila anterior excepto la primera hebra.
     if(datos->id !=0){
-        filaAnterior=take_from_buffer(datos->pasoMensajes, columnas);
+        filaAnterior=take_from_buffer(datos->pasoMensajes, cZoom);
     }
     if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
         pthread_mutex_unlock(&mutex[datos->id +1]);
@@ -205,7 +231,7 @@ void *consumer (void *arg){
     pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
     // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
     if(datos->id !=0){
-        put_in_buffer(datos->pasoMensajes, salida[0],columnas);
+        put_in_buffer(datos->pasoMensajes, matriz_zoom[0],cZoom);
     }
     if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
         pthread_mutex_unlock(&mutex[datos->id +1]);
@@ -214,11 +240,11 @@ void *consumer (void *arg){
         pthread_mutex_unlock(&mutex[0]);
     }
     pthread_barrier_wait(barrera);  // barrera para sincronizacion
-    int * filaSig;
+    float * filaSig;
     pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
     // se lee del buffer la fila siguiente excepto la ultima hebra.
     if(datos->id !=datos->numHebras-1){
-        filaSig=take_from_buffer(datos->pasoMensajes, columnas);
+        filaSig=take_from_buffer(datos->pasoMensajes, cZoom);
     }
     if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
         pthread_mutex_unlock(&mutex[datos->id +1]);
@@ -226,7 +252,121 @@ void *consumer (void *arg){
     else{// desbloquea la primera hebra
         pthread_mutex_unlock(&mutex[0]);
     }
-    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    //################################################//
+    //###################SUAVIZADO####################//
+    //################################################//
+    pthread_barrier_wait(barrera); //Barrera para sincronizacion
+
+    float **matriz_suave=(float **)malloc(fZoom*sizeof(float*));
+    for (int i = 0; i < fZoom; ++i){
+        matriz_suave[i]=(float *) malloc (cZoom*sizeof(float));
+    }
+
+    if (datos->id == 0){
+        matriz_suave = suavizadoPrimero(fZoom, cZoom, zoomImagen, filaSig, cZoom);
+    }
+    else if (datos->id == datos->numHebras-1){
+        matriz_suave = suavizadoUltimo(fZoom, cZoom, zoomImagen, filaAnterior, cZoom);
+    }
+    else {
+        matriz_suave = suavizadoMedio(fZoom, cZoom, zoomImagen, filaAnterior, cZoom, filaSig, cZoom);
+    }
+    //################################################//
+    //################################################//
+    //################################################//
+
+    ////////////////////////////filas anteriores
+    pthread_barrier_wait(barrera);  // barrera para sincronizacion
+
+    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
+    if(datos->id !=datos->numHebras-1){
+        put_in_buffer(datos->pasoMensajes, matriz_suave[fZoom-1],cZoom);
+    }
+    if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[datos->id +1]);
+    }
+    else{// desbloquea la primera hebra
+        pthread_mutex_unlock(&mutex[0]);
+    }
+
+
+    pthread_barrier_wait(barrera);  // barrera para sincronizacion
+    int * filaAnterior=(float*)malloc(sizeof(float)*cZoom);
+    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    // se lee del buffer la fila anterior excepto la primera hebra.
+    if(datos->id !=0){
+        filaAnterior=take_from_buffer(datos->pasoMensajes, cZoom);
+    }
+    if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[datos->id +1]);
+    }
+    else{// desbloquea la primera hebra
+        pthread_mutex_unlock(&mutex[0]);
+    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////Filas siguientes
+    pthread_barrier_wait(barrera);  // barrera para sincronizacion
+
+    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    // se envia al buffer de mensajes la ultima fila de la hebra, exepto la ultima hebra.
+    if(datos->id !=0){
+        put_in_buffer(datos->pasoMensajes, matriz_suave[0],cZoom);
+    }
+    if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[datos->id +1]);
+    }
+    else{// desbloquea la primera hebra
+        pthread_mutex_unlock(&mutex[0]);
+    }
+    pthread_barrier_wait(barrera);  // barrera para sincronizacion
+    float * filaSig;
+    pthread_mutex_lock(&mutex[datos->id]);//bloquea esta hebra
+    // se lee del buffer la fila siguiente excepto la ultima hebra.
+    if(datos->id !=datos->numHebras-1){
+        filaSig=take_from_buffer(datos->pasoMensajes, cZoom);
+    }
+    if(datos->id !=datos->numHebras-1){// desbloquea la siguiente hebra
+        pthread_mutex_unlock(&mutex[datos->id +1]);
+    }
+    else{// desbloquea la primera hebra
+        pthread_mutex_unlock(&mutex[0]);
+    }
+
+    //################################################//
+    //###################DELINEADO####################//
+    //################################################//
+    pthread_barrier_wait(barrera); //Barrera para sincronizacion
+
+    float **matriz_delineado=(float **)malloc(fZoom*sizeof(float*));
+    for (int i = 0; i < fZoom; ++i){
+        matriz_delineado[i]=(float *) malloc (cZoom*sizeof(float));
+    }
+
+    if (datos->id == 0){
+        matriz_delineado = delineadorPrimero(fZoom, cZoom, zoomImagen, filaSig, cZoom);
+    }
+    else if (datos->id == numHebras-1){
+        matriz_delineado = delineadorUltimo(fZoom, cZoom, zoomImagen, filaAnterior, cZoom);
+    }
+    else {
+        matriz_delineado = delineadorMedio(fZoom, cZoom, zoomImagen, filaAnterior, cZoom, filaSig, cZoom);
+    }
+    //################################################//
+    //################################################//
+    //################################################//
+
+
+
+
+
+
+
+
+
+
 
 
 
