@@ -143,11 +143,13 @@ int escritura(float *buffer, int x, int y, char *nombreImagen){
 }
 
 
-//Aplica el filtro de suavizado a una matriz entregada
+//Aplica el filtro de suavizado a una "primera hebra"
 //ENTRADAS :
 //int x - Entra el alto de la imagen
 //int y - Ancho de la imagen
 //float **imagen - Matriz donde se encuentran los pixeles de la imagen
+//float *bufferSiguente - Buffer que contiene la siguente hebra
+//int yBuffer - Largo del buffer de la hebra siguente
 //SALIDA :
 //float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
 float *suavizadoPrimero(int x, int y, float **imagen, float *bufferSiguiente, int yBuffer){
@@ -227,6 +229,15 @@ float *suavizadoPrimero(int x, int y, float **imagen, float *bufferSiguiente, in
 
 }
 
+//Aplica el filtro de suavizado a una "ultima hebra"
+//ENTRADAS :
+//int x - Entra el alto de la imagen
+//int y - Ancho de la imagen
+//float **imagen - Matriz donde se encuentran los pixeles de la imagen
+//float *bufferAnterior - Buffer que contiene la siguente anterior
+//int yBuffer - Largo del buffer de la hebra anterior
+//SALIDA :
+//float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
 float *suavizadoUltimo(int x, int y, float **imagen, float *bufferAnterior, int yBuffer){
     //Creamos el buffer para su escritura
     float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
@@ -304,6 +315,17 @@ float *suavizadoUltimo(int x, int y, float **imagen, float *bufferAnterior, int 
 
 }
 
+//Aplica el filtro de suavizado a una "hebra intermedia"
+//ENTRADAS :
+//int x - Entra el alto de la imagen
+//int y - Ancho de la imagen
+//float **imagen - Matriz donde se encuentran los pixeles de la imagen
+//float *bufferAnterior - Buffer que contiene la siguente anterior
+//int yBufferA - Largo del buffer de la hebra anterior
+//float *bufferSiguente - Buffer que contiene la siguente hebra
+//int yBufferS - Largo del buffer de la hebra siguente
+//SALIDA :
+//float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
 float *suavizadoMedio(int x, int y, float **imagen, float *bufferAnterior, int yBufferA, float *bufferSiguiente, int yBufferS){
     //Creamos el buffer para su escritura
     float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
@@ -402,13 +424,15 @@ float *convertirBuffer(float **imagen, int x, int y, float *bufferImagen){
     return bufferImagen;
 }
 
-//Aplica la transformación de delineado a una matriz entregada
+//Aplica la transformación de delineado a una "primera hebra"
 //ENTRADAS :
-//int columnas- Entra el alto de la imagen
-//int filas - Ancho de la imagen
-//float **matriz - Matriz donde se encuentran los pixeles de la imagen
+//int x - Entra el alto de la imagen
+//int y - Ancho de la imagen
+//float **imagen - Matriz donde se encuentran los pixeles de la imagen
+//float *bufferSiguente - Buffer que contiene la siguente hebra
+//int yBuffer - Largo del buffer de la hebra siguente
 //SALIDA :
-//float **matriz_delineado - Un buffer con los pixeles que se desean anotar al escribir
+//float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
 float *delineadoPrimero(int x, int y, float **imagen, float *bufferSiguiente, int yBuffer){
     //Creamos el buffer para su escritura
     float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
@@ -486,6 +510,15 @@ float *delineadoPrimero(int x, int y, float **imagen, float *bufferSiguiente, in
 
 }
 
+//Aplica el filtro de delineado a una "ultima hebra"
+//ENTRADAS :
+//int x - Entra el alto de la imagen
+//int y - Ancho de la imagen
+//float **imagen - Matriz donde se encuentran los pixeles de la imagen
+//float *bufferAnterior - Buffer que contiene la siguente anterior
+//int yBuffer - Largo del buffer de la hebra anterior
+//SALIDA :
+//float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
 float *delineadoUltimo(int x, int y, float **imagen, float *bufferAnterior, int yBuffer){
     //Creamos el buffer para su escritura
     float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
@@ -563,6 +596,17 @@ float *delineadoUltimo(int x, int y, float **imagen, float *bufferAnterior, int 
 
 }
 
+//Aplica el filtro de delineado a una "hebra intermedia"
+//ENTRADAS :
+//int x - Entra el alto de la imagen
+//int y - Ancho de la imagen
+//float **imagen - Matriz donde se encuentran los pixeles de la imagen
+//float *bufferAnterior - Buffer que contiene la siguente anterior
+//int yBufferA - Largo del buffer de la hebra anterior
+//float *bufferSiguente - Buffer que contiene la siguente hebra
+//int yBufferS - Largo del buffer de la hebra siguente
+//SALIDA :
+//float *nuevaImagen - Un buffer con los pixeles que se desean anotar al escribir
 float *delineadoMedio(int x, int y, float **imagen, float *bufferAnterior, int yBufferA, float *bufferSiguiente, int yBufferS){
     //Creamos el buffer para su escritura
     float* nuevaImagen = (float*)malloc(sizeof(float)*x*y);
