@@ -476,6 +476,12 @@ int main(int argc, char* argv[]){
                 }
                 columnas = optarg;
                 break;
+            case 'h':
+                if(atoi(optarg) < 0){
+                    printf("La cantidad de hebras no son válidas");
+                    return 0;
+                }
+                numeroHebras = optarg;                
             case 'r':
                 if(atoi(optarg) < 1){
                     printf("El factor de zoom no es válido");
@@ -483,13 +489,12 @@ int main(int argc, char* argv[]){
                 }
                 factor = optarg;
                 break;
-            case 'g':
-                if((atoi(optarg) % 90)!= 0){
-                    printf("El factor de giro no es válido");
+            case 'b':
+                if(atoi(optarg) < 0){
+                    printf("El tamaño del buffer no es válido");
                     return 0;
                 }
-                giro = optarg;
-                break;
+                tamanoBuffer = optarg;
             case 'b':
                 flag = "1";
                 break;
